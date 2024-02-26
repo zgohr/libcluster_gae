@@ -139,9 +139,11 @@ defmodule Cluster.Strategy.GoogleAppEngine do
     Logger.warning("Getting instances")
     service_id = System.get_env("GAE_SERVICE")
 
-    versions = get_running_versions(project_id, service_id)
+    # versions = get_running_versions(project_id, service_id)
+    version = System.get_env("GAE_VERSION")
+    get_instances_for_version(project_id, service_id, version)
 
-    Enum.flat_map(versions, &get_instances_for_version(project_id, service_id, &1))
+    # Enum.flat_map(versions, &get_instances_for_version(project_id, service_id, &1))
   end
 
   defp get_running_versions(project_id, service_id) do
