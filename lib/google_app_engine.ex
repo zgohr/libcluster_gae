@@ -64,13 +64,15 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   ```
   """
 
+  require Logger
+
   use GenServer
   use Cluster.Strategy
 
   alias Cluster.Strategy.State
 
   @default_polling_interval 10_000
-  @access_token_path 'http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token'
+  @access_token_path "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args)
@@ -118,7 +120,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
 
     release_name = System.get_env("REL_NAME")
 
-    Enum.map(instances, & :"#{release_name}@#{&1}.c.#{project_id}.internal")
+    Enum.map(instances, &:"#{release_name}@#{&1}.c.#{project_id}.internal")
   end
 
   defp get_running_instances(project_id) do
@@ -131,9 +133,9 @@ defmodule Cluster.Strategy.GoogleAppEngine do
 
   defp get_running_versions(project_id, service_id) do
     access_token = access_token()
-    headers = [{'Authorization', 'Bearer #{access_token}'}]
+    headers = [{"Authorization", "Bearer #{access_token}"}]
 
-    api_url = 'https://appengine.googleapis.com/v1/apps/#{project_id}/services/#{service_id}'
+    api_url = "https://appengine.googleapis.com/v1/apps/#{project_id}/services/#{service_id}"
 
     case :httpc.request(:get, {api_url, headers}, [], []) do
       {:ok, {{_, 200, _}, _headers, body}} ->
@@ -144,9 +146,10 @@ defmodule Cluster.Strategy.GoogleAppEngine do
 
   defp get_instances_for_version(project_id, service_id, version) do
     access_token = access_token()
-    headers = [{'Authorization', 'Bearer #{access_token}'}]
+    headers = [{"Authorization", "Bearer #{access_token}"}]
 
-    api_url = 'https://appengine.googleapis.com/v1/apps/#{project_id}/services/#{service_id}/versions/#{version}/instances'
+    api_url =
+      "https://appengine.googleapis.com/v1/apps/#{project_id}/services/#{service_id}/versions/#{version}/instances"
 
     case :httpc.request(:get, {api_url, headers}, [], []) do
       {:ok, {{_, 200, _}, _headers, body}} ->
@@ -155,15 +158,17 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   end
 
   defp handle_instances(%{"instances" => instances}) do
+    Logger.warning("Instance metadata : #{instances}")
+
     instances
-    |> Enum.filter(& &1["vmStatus"] == "RUNNING")
+    |> Enum.filter(&(&1["vmStatus"] == "RUNNING"))
     |> Enum.map(& &1["id"])
   end
 
   defp handle_instances(_), do: []
 
   defp access_token do
-    headers = [{'Metadata-Flavor', 'Google'}]
+    headers = [{"Metadata-Flavor", "Google"}]
 
     case :httpc.request(:get, {@access_token_path, headers}, [], []) do
       {:ok, {{_, 200, _}, _headers, body}} ->
