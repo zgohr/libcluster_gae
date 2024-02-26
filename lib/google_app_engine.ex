@@ -103,8 +103,10 @@ defmodule Cluster.Strategy.GoogleAppEngine do
     topology = state.topology
 
     nodes = get_nodes(state)
+    Logger.warning("Got nodes")
 
-    Cluster.Strategy.connect_nodes(topology, connect, list_nodes, nodes)
+    res = Cluster.Strategy.connect_nodes(topology, connect, list_nodes, nodes)
+    Logger.warning("Cluster result #{res}")
 
     Process.send_after(self(), :load, polling_interval(state))
 
@@ -180,8 +182,13 @@ defmodule Cluster.Strategy.GoogleAppEngine do
 
     case :httpc.request(:get, {@access_token_path, headers}, [], []) do
       {:ok, {{_, 200, _}, _headers, body}} ->
+        Logger.warning("Token #{inspect(body)}")
         %{"access_token" => token} = Jason.decode!(body)
         token
+
+      error ->
+        Logger.warning("Token error #{inspect(error)}")
+        nil
     end
   end
 end
