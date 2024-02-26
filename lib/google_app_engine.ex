@@ -109,11 +109,11 @@ defmodule Cluster.Strategy.GoogleAppEngine do
     {_id, _zone, this_node_atom} =
       Enum.find(nodes, fn {id, _zone, _atom} -> id == this_instance_id end)
 
-    if Node.self() != this_node_atom do
-      Logger.warning("Setting node name to #{this_node_atom}")
-      result = Node.start(this_node_atom)
-      Logger.warn("Start result #{inspect(result)}")
-    end
+    # if Node.self() != this_node_atom do
+    # Logger.warning("Setting node name to #{this_node_atom}")
+    # result = Node.start(this_node_atom)
+    # Logger.warn("Start result #{inspect(result)}")
+    # end
 
     node_atoms = Enum.map(nodes, fn {_id, _zone, atom} -> atom end)
 
