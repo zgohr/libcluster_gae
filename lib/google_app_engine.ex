@@ -120,7 +120,9 @@ defmodule Cluster.Strategy.GoogleAppEngine do
 
     release_name = System.get_env("REL_NAME")
 
-    Enum.map(instances, &:"#{release_name}@#{&1}.c.#{project_id}.internal")
+    Enum.map(instances, fn {id, zone} ->
+      :"#{release_name}@#{id}.#{zone}.c.#{project_id}.internal"
+    end)
   end
 
   defp get_running_instances(project_id) do
@@ -162,7 +164,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
 
     instances
     |> Enum.filter(&(&1["vmStatus"] == "RUNNING"))
-    |> Enum.map(& &1["id"])
+    |> Enum.map(&{&1["id"], &1["vmZoneName"]})
   end
 
   defp handle_instances(_), do: []
