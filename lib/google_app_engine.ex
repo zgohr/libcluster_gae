@@ -104,22 +104,9 @@ defmodule Cluster.Strategy.GoogleAppEngine do
 
     nodes = get_nodes(state)
 
-    this_instance_id = System.get_env("GAE_INSTANCE")
-
-    {_id, _zone, this_node_atom} =
-      Enum.find(nodes, fn {id, _zone, _atom} -> id == this_instance_id end)
-
-    if Node.self() != this_node_atom do
-      Logger.warning("Setting node name to #{this_node_atom}")
-      result = Node.start(this_node_atom)
-      Logger.warn("Start result #{inspect(result)}")
-    end
-
-    node_atoms = Enum.map(nodes, fn {_id, _zone, atom} -> atom end)
-
     Logger.warning("Got nodes")
 
-    case Cluster.Strategy.connect_nodes(topology, connect, list_nodes, node_atoms) do
+    case Cluster.Strategy.connect_nodes(topology, connect, list_nodes, nodes) do
       :ok ->
         Logger.warning("Connected to nodes #{inspect(nodes)}")
 
@@ -144,7 +131,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
     release_name = System.get_env("REL_NAME")
 
     Enum.map(instances, fn {id, zone} ->
-      {id, zone, :"#{release_name}@#{id}.#{zone}.c.#{project_id}.internal"}
+      :"#{release_name}@#{id}.#{zone}.c.#{project_id}.internal"
     end)
   end
 
