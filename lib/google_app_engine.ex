@@ -102,7 +102,10 @@ defmodule Cluster.Strategy.GoogleAppEngine do
     list_nodes = state.list_nodes
     topology = state.topology
 
-    nodes = get_nodes(state)
+    nodes =
+      get_nodes(state)
+      |> Enum.filter(fn {instance, _zone} -> instance != System.get_env("GAE_INSTANCE") end)
+
     Logger.warning("Got nodes")
 
     res = Cluster.Strategy.connect_nodes(topology, connect, list_nodes, nodes)
