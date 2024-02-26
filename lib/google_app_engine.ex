@@ -111,7 +111,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
 
     if Node.self() != this_node_atom do
       Logger.warning("Setting node name to #{this_node_atom}")
-      Node.start(this_node_atom)
+      Node.start(Atom.to_string(this_node_atom))
     end
 
     node_atoms = Enum.map(nodes, fn {_id, _zone, atom} -> atom end)
