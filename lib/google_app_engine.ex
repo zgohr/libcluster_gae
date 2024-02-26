@@ -135,7 +135,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
 
   defp get_running_versions(project_id, service_id) do
     access_token = access_token()
-    headers = [{"Authorization", "Bearer #{access_token}"}]
+    headers = [{~c"Authorization", ~c"Bearer #{access_token}"}]
 
     api_url = "https://appengine.googleapis.com/v1/apps/#{project_id}/services/#{service_id}"
 
@@ -148,7 +148,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
 
   defp get_instances_for_version(project_id, service_id, version) do
     access_token = access_token()
-    headers = [{"Authorization", "Bearer #{access_token}"}]
+    headers = [{~c"Authorization", ~c"Bearer #{access_token}"}]
 
     api_url =
       "https://appengine.googleapis.com/v1/apps/#{project_id}/services/#{service_id}/versions/#{version}/instances"
@@ -170,7 +170,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   defp handle_instances(_), do: []
 
   defp access_token do
-    headers = [{"Metadata-Flavor", "Google"}]
+    headers = [{~c"Metadata-Flavor", ~c"Google"}]
 
     case :httpc.request(:get, {@access_token_path, headers}, [], []) do
       {:ok, {{_, 200, _}, _headers, body}} ->
