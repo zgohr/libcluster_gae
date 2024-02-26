@@ -102,14 +102,17 @@ defmodule Cluster.Strategy.GoogleAppEngine do
     list_nodes = state.list_nodes
     topology = state.topology
 
-    nodes =
-      get_nodes(state)
-      |> Enum.filter(fn {instance, _zone} -> instance != System.get_env("GAE_INSTANCE") end)
+    nodes = get_nodes(state)
 
     Logger.warning("Got nodes")
 
-    res = Cluster.Strategy.connect_nodes(topology, connect, list_nodes, nodes)
-    Logger.warning("Cluster result #{res}")
+    case Cluster.Strategy.connect_nodes(topology, connect, list_nodes, nodes) do
+      :ok ->
+        Logger.warning("Connected to nodes #{inspect(nodes)}")
+
+      {:error, e} ->
+        Logger.error("Failed connecting with #{inspect(e)}")
+    end
 
     Process.send_after(self(), :load, polling_interval(state))
 
