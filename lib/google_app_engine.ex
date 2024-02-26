@@ -167,7 +167,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   end
 
   defp handle_instances(%{"instances" => instances}) do
-    Logger.warning("Instance metadata : #{instances}")
+    Logger.warning("Instance metadata : #{inspect(instances)}")
 
     instances
     |> Enum.filter(&(&1["vmStatus"] == "RUNNING"))
