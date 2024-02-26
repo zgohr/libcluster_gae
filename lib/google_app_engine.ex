@@ -111,7 +111,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
 
     if Node.self() != this_node_atom do
       Logger.warning("Setting node name to #{this_node_atom}")
-      result = Node.start(this_node_atom, :shortnames)
+      result = Node.start(this_node_atom)
       Logger.warn("Start result #{inspect(result)}")
     end
 
