@@ -97,6 +97,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   end
 
   defp load(%State{} = state) do
+    Logger.warning("Loading cluster")
     connect = state.connect
     list_nodes = state.list_nodes
     topology = state.topology
@@ -115,6 +116,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   end
 
   defp get_nodes(%State{}) do
+    Logger.warning("Getting nodes")
     project_id = System.get_env("GOOGLE_CLOUD_PROJECT")
     instances = get_running_instances(project_id)
 
@@ -126,6 +128,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   end
 
   defp get_running_instances(project_id) do
+    Logger.warning("Getting instances")
     service_id = System.get_env("GAE_SERVICE")
 
     versions = get_running_versions(project_id, service_id)
@@ -134,6 +137,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   end
 
   defp get_running_versions(project_id, service_id) do
+    Logger.warning("Getting versions")
     access_token = access_token()
     headers = [{~c"Authorization", ~c"Bearer #{access_token}"}]
 
@@ -147,6 +151,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   end
 
   defp get_instances_for_version(project_id, service_id, version) do
+    Logger.warning("Getting instances")
     access_token = access_token()
     headers = [{~c"Authorization", ~c"Bearer #{access_token}"}]
 
@@ -170,6 +175,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   defp handle_instances(_), do: []
 
   defp access_token do
+    Logger.warning("Getting token")
     headers = [{~c"Metadata-Flavor", ~c"Google"}]
 
     case :httpc.request(:get, {@access_token_path, headers}, [], []) do
