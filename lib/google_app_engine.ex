@@ -72,7 +72,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   alias Cluster.Strategy.State
 
   @default_polling_interval 10_000
-  @access_token_path "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+  @access_token_path ~c"http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
 
   def start_link(args) do
     GenServer.start_link(__MODULE__, args)
@@ -137,7 +137,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
     access_token = access_token()
     headers = [{~c"Authorization", ~c"Bearer #{access_token}"}]
 
-    api_url = "https://appengine.googleapis.com/v1/apps/#{project_id}/services/#{service_id}"
+    api_url = ~c"https://appengine.googleapis.com/v1/apps/#{project_id}/services/#{service_id}"
 
     case :httpc.request(:get, {api_url, headers}, [], []) do
       {:ok, {{_, 200, _}, _headers, body}} ->
@@ -151,7 +151,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
     headers = [{~c"Authorization", ~c"Bearer #{access_token}"}]
 
     api_url =
-      "https://appengine.googleapis.com/v1/apps/#{project_id}/services/#{service_id}/versions/#{version}/instances"
+      ~c"https://appengine.googleapis.com/v1/apps/#{project_id}/services/#{service_id}/versions/#{version}/instances"
 
     case :httpc.request(:get, {api_url, headers}, [], []) do
       {:ok, {{_, 200, _}, _headers, body}} ->
