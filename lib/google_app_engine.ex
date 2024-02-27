@@ -16,7 +16,8 @@ defmodule Cluster.Strategy.GoogleAppEngine do
       my_app: [
         strategy: Cluster.Strategy.GoogleAppEngine,
         config: [
-          polling_interval: 10_000
+          polling_interval: 10_000,
+          cluster_across_versions: false
         ]
       ]
     ]
@@ -27,6 +28,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   Options can be set for the strategy under the `:config` key when defining the topology.
 
   * `:polling_interval` - Interval for checking for the list of running instances. Defaults to `10_000`
+  * `:cluster_across_versions` - Boolean if you'd like to cluster different versions of the same service together. Defaults to `true`
 
   ## Application Setup
 
@@ -36,15 +38,28 @@ defmodule Cluster.Strategy.GoogleAppEngine do
 
   ### Release Configuration
 
-  Update your release's `vm.args` file to include the following lines.
+  Add the following to, or create a `rel/env.sh.eex`
 
-  ```
-  ## Name of the node
-  -name <%= release_name%>@${GAE_INSTANCE}.c.${GOOGLE_CLOUD_PROJECT}.internal
+  ```bash
+  #!/bin/sh
 
-  ## Limit distributed erlang ports to a single port
-  -kernel inet_dist_listen_min 9999
-  -kernel inet_dist_listen_max 9999
+
+  if [ ! -f /tmp/zone ]; then
+  curl -H "Metadata-Flavor: Google" http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token | jq -r .access_token > /tmp/access_token
+  curl -H "Authorization: Bearer $(cat /tmp/access_token)" https://appengine.googleapis.com/v1/apps/${GOOGLE_CLOUD_PROJECT}/services/${GAE_SERVICE}/versions/${GAE_VERSION}/instances/${GAE_INSTANCE} | jq -r .vmZoneName > /tmp/zone
+  fi
+
+  export RELEASE_DISTRIBUTION="name"
+  export RELEASE_NODE="${REL_NAME}@${GAE_INSTANCE}.$(cat /tmp/zone).c.${GOOGLE_CLOUD_PROJECT}.internal"
+
+  case $RELEASE_COMMAND in
+  start*|daemon*)
+    ELIXIR_ERL_OPTIONS="-kernel inet_dist_listen_min 9999 inet_dist_listen_max 9999"
+    export ELIXIR_ERL_OPTIONS
+    ;;
+  *)
+    ;;
+  esac
   ```
 
   ### GAE Configuration File
@@ -72,6 +87,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   alias Cluster.Strategy.State
 
   @default_polling_interval 10_000
+  @default_cluster_across_versions true
   @access_token_path ~c"http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
 
   def start_link(args) do
@@ -97,18 +113,15 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   end
 
   defp load(%State{} = state) do
-    Logger.warning("Loading cluster")
     connect = state.connect
     list_nodes = state.list_nodes
     topology = state.topology
 
     nodes = get_nodes(state)
 
-    Logger.warning("Got nodes")
-
     case Cluster.Strategy.connect_nodes(topology, connect, list_nodes, nodes) do
       :ok ->
-        Logger.warning("Connected to nodes #{inspect(nodes)}")
+        Logger.debug("Connected to nodes #{inspect(nodes)}")
 
       {:error, e} ->
         Logger.error("Failed connecting with #{inspect(e)}")
@@ -119,14 +132,15 @@ defmodule Cluster.Strategy.GoogleAppEngine do
     state
   end
 
-  defp polling_interval(%State{config: config}) do
-    Keyword.get(config, :polling_interval, @default_polling_interval)
-  end
+  defp polling_interval(%State{config: config}),
+    do: Keyword.get(config, :polling_interval, @default_polling_interval)
 
-  defp get_nodes(%State{}) do
-    Logger.warning("Getting nodes")
+  defp cluster_across_versions(%State{config, config}),
+    do: Keyword.get(config, :cluster_across_versions, @default_cluster_across_versions)
+
+  defp get_nodes(state = %State{}) do
     project_id = System.get_env("GOOGLE_CLOUD_PROJECT")
-    instances = get_running_instances(project_id)
+    instances = get_running_instances(project_id, state)
 
     release_name = System.get_env("REL_NAME")
 
@@ -135,19 +149,19 @@ defmodule Cluster.Strategy.GoogleAppEngine do
     end)
   end
 
-  defp get_running_instances(project_id) do
-    Logger.warning("Getting instances")
+  defp get_running_instances(project_id, state = %State{}) do
     service_id = System.get_env("GAE_SERVICE")
 
-    # versions = get_running_versions(project_id, service_id)
-    version = System.get_env("GAE_VERSION")
-    get_instances_for_version(project_id, service_id, version)
-
-    # Enum.flat_map(versions, &get_instances_for_version(project_id, service_id, &1))
+    if cluster_across_versions(state) do
+      versions = get_running_versions(project_id, service_id)
+      Enum.flat_map(versions, &get_instances_for_version(project_id, service_id, &1))
+    else
+      version = System.get_env("GAE_VERSION")
+      get_instances_for_version(project_id, service_id, version)
+    end
   end
 
   defp get_running_versions(project_id, service_id) do
-    Logger.warning("Getting versions")
     access_token = access_token()
     headers = [{~c"Authorization", ~c"Bearer #{access_token}"}]
 
@@ -161,7 +175,6 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   end
 
   defp get_instances_for_version(project_id, service_id, version) do
-    Logger.warning("Getting instances")
     access_token = access_token()
     headers = [{~c"Authorization", ~c"Bearer #{access_token}"}]
 
@@ -175,8 +188,6 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   end
 
   defp handle_instances(%{"instances" => instances}) do
-    Logger.warning("Instance metadata : #{inspect(instances)}")
-
     instances
     |> Enum.filter(&(&1["vmStatus"] == "RUNNING"))
     |> Enum.map(&{&1["id"], &1["vmZoneName"]})
@@ -185,17 +196,15 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   defp handle_instances(_), do: []
 
   defp access_token do
-    Logger.warning("Getting token")
     headers = [{~c"Metadata-Flavor", ~c"Google"}]
 
     case :httpc.request(:get, {@access_token_path, headers}, [], []) do
       {:ok, {{_, 200, _}, _headers, body}} ->
-        Logger.warning("Token #{inspect(body)}")
         %{"access_token" => token} = Jason.decode!(body)
         token
 
       error ->
-        Logger.warning("Token error #{inspect(error)}")
+        Logger.error("Token error #{inspect(error)}")
         nil
     end
   end
