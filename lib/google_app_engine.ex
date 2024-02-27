@@ -135,7 +135,7 @@ defmodule Cluster.Strategy.GoogleAppEngine do
   defp polling_interval(%State{config: config}),
     do: Keyword.get(config, :polling_interval, @default_polling_interval)
 
-  defp cluster_across_versions(%State{config, config}),
+  defp cluster_across_versions(%State{config: config}),
     do: Keyword.get(config, :cluster_across_versions, @default_cluster_across_versions)
 
   defp get_nodes(state = %State{}) do
